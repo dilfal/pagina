@@ -138,8 +138,13 @@ impl WatcherState {
         let Some(dir) = Path::new(path).parent().map(|d| d.to_path_buf()) else {
             return;
         };
-        let drop_dir = self.registry.lock().unwrap().remove(path, &dir);
-        if drop_dir && let Some(d) = self.debouncer.lock().unwrap().as_mut() {
+        // Stesso ordine di `watch` (prima il debouncer, poi il registro), con entrambi i
+        // lock tenuti fino alla fine: nessun `watch` può inserirsi tra il registro e il debouncer.
+        let mut guard = self.debouncer.lock().unwrap();
+        let mut reg = self.registry.lock().unwrap();
+        if reg.remove(path, &dir)
+            && let Some(d) = guard.as_mut()
+        {
             let _ = d.watcher().unwatch(&dir);
         }
     }
