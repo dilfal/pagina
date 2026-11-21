@@ -1,0 +1,184 @@
+.markdown-body {
+  max-width: 80ch;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+  color: var(--fg);
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.6em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.markdown-body h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.markdown-body h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+.markdown-body h4 {
+  font-size: 1em;
+}
+.markdown-body h5 {
+  font-size: 0.875em;
+}
+.markdown-body h6 {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body table,
+.markdown-body pre,
+.markdown-body details {
+  margin: 0 0 1em;
+}
+
+.markdown-body a {
+  color: var(--link);
+  text-decoration: none;
+}
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+}
+.markdown-body li + li {
+  margin-top: 0.25em;
+}
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin: 0.25em 0 0;
+}
+
+.markdown-body li.task-list-item {
+  list-style: none;
+}
+.markdown-body li.task-list-item > input.task-list-item-checkbox {
+  margin: 0 0.5em 0.2em -1.4em;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: var(--quote);
+  border-left: 0.25em solid var(--border);
+}
+.markdown-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body hr {
+  height: 0.25em;
+  margin: 1.5em 0;
+  padding: 0;
+  background: var(--border);
+  border: 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-body code,
+.markdown-body kbd {
+  padding: 0.2em 0.4em;
+  font-family: var(--mono);
+  font-size: 85%;
+  background: var(--code-bg);
+  border-radius: 6px;
+}
+
+.markdown-body pre {
+  padding: 14px 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background: var(--code-bg);
+  border-radius: 6px;
+}
+.markdown-body pre code {
+  padding: 0;
+  font-size: inherit;
+  background: transparent;
+  border-radius: 0;
+  white-space: pre;
+}
+
+/* Shiki: due temi, scelti dal tema dell'app tramite variabili CSS */
+.markdown-body pre.shiki,
+.markdown-body pre.shiki span {
+  color: var(--shiki-light);
+}
+:root[data-theme='dark'] .markdown-body pre.shiki,
+:root[data-theme='dark'] .markdown-body pre.shiki span {
+  color: var(--shiki-dark);
+}
+.markdown-body pre.shiki {
+  background: var(--code-bg) !important;
+}
+
+.markdown-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid var(--border);
+}
+.markdown-body table tr:nth-child(2n) {
+  background: var(--code-bg);
+}
+.markdown-body table th {
+  font-weight: 600;
+}
+
+.markdown-body .footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border);
+  font-size: 0.9em;
+  color: var(--muted);
+}
+.markdown-body .footnotes-sep {
+  display: none;
+}
+.markdown-body sup.footnote-ref a {
+  padding: 0 1px;
+}
+
+.markdown-body details > summary {
+  cursor: pointer;
+}

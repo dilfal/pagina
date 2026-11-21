@@ -1,0 +1,116 @@
+:root {
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --fg: #1f2328;
+  --muted: #656d76;
+  --border: #d0d7de;
+  --editor-bg: #ffffff;
+  --preview-bg: #ffffff;
+  --panel-bg: #f0f2f5;
+  --tab-bg: #e9ecf0;
+  --tab-active-bg: #ffffff;
+  --btn-bg: #f3f4f6;
+  --btn-hover: #e4e7eb;
+  --accent: #0969da;
+  --accent-fg: #ffffff;
+  --active-line: #f4f7fb;
+  --selection: #b6d7ff;
+  --match: #fff0a0;
+  --match-selected: #ffd24d;
+  --warn-bg: #fff8c5;
+  --warn-border: #d4a72c;
+  --err-bg: #ffebe9;
+  --code-bg: #f6f8fa;
+  --quote: #656d76;
+  --link: #0969da;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #15181c;
+  --fg: #d7dce2;
+  --muted: #8b949e;
+  --border: #30363d;
+  --editor-bg: #1b1f24;
+  --preview-bg: #1b1f24;
+  --panel-bg: #21262d;
+  --tab-bg: #101316;
+  --tab-active-bg: #1b1f24;
+  --btn-bg: #272c33;
+  --btn-hover: #323842;
+  --accent: #4493f8;
+  --accent-fg: #0b0d10;
+  --active-line: #20252b;
+  --selection: #264f78;
+  --match: #5b4a12;
+  --match-selected: #8a6d12;
+  --warn-bg: #3a3112;
+  --warn-border: #9e7e1b;
+  --err-bg: #4a1d1d;
+  --code-bg: #161b22;
+  --quote: #8b949e;
+  --link: #58a6ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--btn-hover);
+}
+.icon-btn.on {
+  background: var(--btn-bg);
+  border-color: var(--border);
+  color: var(--accent);
+}
+
+.btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--btn-hover);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
