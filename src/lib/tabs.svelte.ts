@@ -24,6 +24,8 @@ export class Tab {
   rev = $state(0);
   eol: '\n' | '\r\n' = '\n';
   bom = false;
+  /** Il file aveva fine riga misti: l'avviso resta finché non si salva o lo si chiude. */
+  mixedEol = $state(false);
   cm: EditorState;
   savedDoc: Text;
   scrollTop = 0;
@@ -62,6 +64,8 @@ class TabsStore {
   /** Scheda a cui appartiene lo stato attualmente nella vista di CodeMirror. */
   viewTabId: string | null = null;
   private untitledCounter = 0;
+  /** Percorsi (normalizzati) per cui è in corso un'apertura. */
+  private opening = new Set<string>();
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   get active(): Tab | null {
@@ -98,25 +102,37 @@ class TabsStore {
   }
 
   async openPaths(paths: string[]) {
+    // Deduplica prima di qualunque await: i percorsi già aperti o già «in apertura»
+    // (anche da un'altra chiamata ravvicinata) non producono una seconda scheda.
     let last: Tab | null = null;
+    const toOpen: { path: string; key: string }[] = [];
     for (const p of paths) {
-      const existing = this.tabs.find((x) => x.path && normPath(x.path) === normPath(p));
+      const key = normPath(p);
+      const existing = this.tabs.find((x) => x.path && normPath(x.path) === key);
       if (existing) {
         last = existing;
         continue;
       }
+      if (this.opening.has(key)) continue;
+      this.opening.add(key);
+      toOpen.push({ path: p, key });
+    }
+    for (const { path: p, key } of toOpen) {
       try {
         const data = await api.readTextFile(p);
         const tab = new Tab(data.content);
         tab.path = p;
         tab.eol = data.eol;
         tab.bom = data.bom;
+        tab.mixedEol = data.mixedEol;
         tab.mode = 'preview';
         await api.watchFile(p);
         this.tabs.push(tab);
         last = tab;
       } catch (e) {
         this.notify(t('error.read', { name: basename(p), error: api.errorMessage(e) }));
+      } finally {
+        this.opening.delete(key);
       }
     }
     if (last) this.activeId = last.id;
@@ -208,6 +224,23 @@ class TabsStore {
       path = picked;
       forced = true; // il dialogo del sistema ha già chiesto conferma di sovrascrittura
     }
+    // Con un conflitto aperto si salva solo passando dalla barra («Tieni la mia versione»),
+    // anche per il salvataggio manuale.
+    if (tab.conflict === 'modified' && !forced) return false;
+    // Stesso file già aperto in un'altra scheda?
+    const other =
+      path !== tab.path
+        ? this.tabs.find((x) => x.id !== tab.id && x.path && normPath(x.path) === normPath(path!))
+        : undefined;
+    if (other?.dirty) {
+      const ok = await ask(t('confirm.overwriteOpen', { name: basename(path) }), {
+        title: t('confirm.title'),
+        kind: 'warning',
+        okLabel: t('confirm.overwrite'),
+        cancelLabel: t('confirm.cancel')
+      });
+      if (!ok) return false;
+    }
     const doc = tab.cm.doc;
     try {
       await api.writeTextFile(path, doc.toString(), tab.eol, tab.bom, forced);
@@ -226,6 +259,12 @@ class TabsStore {
       tab.path = path;
       await api.watchFile(path).catch(() => {});
     }
+    if (other) {
+      // l'altra scheda (pulita, o scartata su conferma) si chiude dopo la scrittura
+      await this.removeTab(other);
+      this.activeId = tab.id;
+    }
+    tab.mixedEol = false; // al salvataggio i fine riga sono diventati uniformi
     tab.savedDoc = doc;
     tab.dirty = !tab.cm.doc.eq(doc);
     if (tab.conflict === 'deleted' || (tab.conflict === 'modified' && forced)) tab.conflict = null;
@@ -259,6 +298,13 @@ class TabsStore {
   /** Ricarica dal disco. In silenzio se non ci sono modifiche; su richiesta (conflitto) annullabile con Ctrl+Z. */
   async reload(tab: Tab, manual: boolean) {
     if (!tab.path) return;
+    // Controllo prima di leggere: la lettura aggiorna l'hash noto dal lato Rust, quindi
+    // con modifiche locali non si deve leggere (e mai segnare il contenuto esterno come noto).
+    if (!manual && tab.dirty) {
+      this.clearTimer(tab);
+      tab.conflict = 'modified';
+      return;
+    }
     let data: api.FileData;
     try {
       data = await api.readTextFile(tab.path);
@@ -274,6 +320,7 @@ class TabsStore {
     }
     tab.eol = data.eol;
     tab.bom = data.bom;
+    tab.mixedEol = data.mixedEol;
     const old = tab.cm.doc.toString();
     if (old !== data.content) {
       this.applyChange(tab, {
@@ -311,6 +358,11 @@ class TabsStore {
 
   async closeTab(tab: Tab) {
     if (!(await this.prepareClose(tab))) return;
+    await this.removeTab(tab);
+  }
+
+  /** Toglie la scheda senza chiedere nulla (la conferma è già stata fatta, o non serve). */
+  private async removeTab(tab: Tab) {
     this.clearTimer(tab);
     const i = this.tabs.findIndex((x) => x.id === tab.id);
     if (i < 0) return;

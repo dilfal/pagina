@@ -4,6 +4,7 @@ export interface FileData {
   content: string;
   eol: '\n' | '\r\n';
   bom: boolean;
+  mixedEol: boolean;
 }
 
 export interface FileError {

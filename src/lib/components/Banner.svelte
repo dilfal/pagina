@@ -23,7 +23,20 @@
   </div>
 {/if}
 
+{#if tab.mixedEol}
+  <div class="banner info" role="status">
+    <span>{t('banner.mixedEol', { eol: tab.eol === '\r\n' ? 'CRLF' : 'LF' })}</span>
+    <span class="actions">
+      <button class="btn" onclick={() => (tab.mixedEol = false)}>{t('banner.dismiss')}</button>
+    </span>
+  </div>
+{/if}
+
 <style>
+  .banner.info {
+    background: var(--panel-bg);
+    border-bottom-color: var(--border);
+  }
   .banner {
     display: flex;
     align-items: center;

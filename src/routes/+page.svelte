@@ -80,13 +80,13 @@
     (async () => {
       await settings.init();
       ready = true;
-      keep(listen<string[]>('open-files', (e) => void store.openPaths(e.payload)));
-      keep(
+      await keep(listen<string[]>('open-files', (e) => void store.openPaths(e.payload)));
+      await keep(
         listen<{ path: string; status: string }>('file-changed', (e) =>
           void store.onFileChanged(e.payload.path, e.payload.status)
         )
       );
-      keep(
+      await keep(
         getCurrentWebview().onDragDropEvent((e) => {
           const p = e.payload;
           if (p.type === 'enter' || p.type === 'over') dropping = true;
@@ -98,12 +98,13 @@
           }
         })
       );
-      keep(
+      await keep(
         getCurrentWindow().onCloseRequested(async (e) => {
           e.preventDefault();
           if (await store.confirmQuit()) await getCurrentWindow().destroy();
         })
       );
+      // Solo ora, con i listener già registrati, si leggono i file in coda (primo avvio e secondi avvii troppo precoci).
       // File passati da riga di comando al primo avvio (o doppio clic): solo anteprima.
       const files = await takeLaunchFiles();
       if (files.length) await store.openPaths(files);

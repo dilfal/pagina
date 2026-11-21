@@ -36,6 +36,7 @@ impl FileError {
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct FileData {
     /// Contenuto con fine riga normalizzati a "\n".
     pub content: String,
@@ -43,6 +44,8 @@ pub struct FileData {
     pub eol: String,
     /// Il file iniziava con il BOM UTF-8.
     pub bom: bool,
+    /// Il file ha fine riga misti (CRLF e LF insieme) o CR isolati.
+    pub mixed_eol: bool,
 }
 
 pub fn hash_bytes(bytes: &[u8]) -> u64 {
@@ -62,10 +65,13 @@ pub fn decode(bytes: &[u8]) -> Result<FileData, FileError> {
     let crlf = text.matches("\r\n").count();
     let lf = text.matches('\n').count() - crlf;
     let eol = if crlf > lf { "\r\n" } else { "\n" };
+    let lone_cr = text.matches('\r').count() - crlf;
+    let mixed_eol = (crlf > 0 && lf > 0) || lone_cr > 0;
     Ok(FileData {
         content: text.replace("\r\n", "\n"),
         eol: eol.to_string(),
         bom,
+        mixed_eol,
     })
 }
 
@@ -162,7 +168,12 @@ pub fn write_file(
     bom: bool,
     force: bool,
 ) -> Result<(), FileError> {
-    let p = PathBuf::from(path);
+    let mut p = PathBuf::from(path);
+    // se la destinazione è un collegamento simbolico si scrive sul file vero:
+    // il collegamento resta un collegamento
+    if fs::symlink_metadata(&p).is_ok_and(|m| m.file_type().is_symlink()) {
+        p = fs::canonicalize(&p).map_err(FileError::io)?;
+    }
     if !force
         && let (Some(k), Ok(disk)) = (known.get(path), fs::read(&p))
         && hash_bytes(&disk) != k
@@ -267,6 +278,44 @@ mod tests {
         assert_eq!(fs::read(&f).unwrap(), b"esterno");
         write_file(&known, &path, "v2", "\n", false, true).unwrap();
         assert_eq!(fs::read(&f).unwrap(), b"v2");
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn decode_flags_mixed_line_endings() {
+        assert!(!decode(b"a\r\nb\r\n").unwrap().mixed_eol);
+        assert!(!decode(b"a\nb\n").unwrap().mixed_eol);
+        assert!(decode(b"a\r\nb\nc").unwrap().mixed_eol);
+        assert!(decode(b"a\rb\n").unwrap().mixed_eol);
+    }
+
+    #[test]
+    fn write_through_symlink_keeps_the_link() {
+        let d = tmpdir("symlink");
+        let real = d.join("vero.md");
+        let link = d.join("link.md");
+        fs::write(&real, b"vecchio").unwrap();
+        #[cfg(windows)]
+        let made = std::os::windows::fs::symlink_file(&real, &link);
+        #[cfg(unix)]
+        let made = std::os::unix::fs::symlink(&real, &link);
+        if made.is_err() {
+            // su Windows senza privilegi il collegamento non si può creare: test saltato
+            eprintln!("symlink non creabile, test saltato");
+            fs::remove_dir_all(&d).unwrap();
+            return;
+        }
+        let known = KnownHashes::default();
+        let path = link.to_string_lossy().into_owned();
+        write_file(&known, &path, "nuovo", "\n", false, true).unwrap();
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read(&real).unwrap(), b"nuovo");
+        assert_eq!(fs::read(&link).unwrap(), b"nuovo");
         fs::remove_dir_all(&d).unwrap();
     }
 
