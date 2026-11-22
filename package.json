@@ -14,7 +14,7 @@
     "test": "svelte-kit sync && vitest run",
     "test:e2e": "wdio run e2e/wdio.conf.js"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-markdown": "^6.5.2",
