@@ -1,7 +1,7 @@
 // Suite E2E sull'app vera (pagina.exe) con tauri-driver + msedgedriver + WebdriverIO.
-// Lancio: pnpm test:e2e   (da C:\Users\df\Dev\Scripts\Lettore Markdown)
+// Lancio: pnpm test:e2e   (dalla cartella del progetto)
 // Prerequisiti: tauri-driver (cargo install tauri-driver --locked), msedgedriver della stessa versione di WebView2
-// in C:\Users\df\.local\msedgedriver\msedgedriver.exe, build debug in src-tauri\target\debug\pagina.exe.
+// in %USERPROFILE%\.local\msedgedriver\msedgedriver.exe (o in MSEDGEDRIVER), build debug in src-tauri\target\debug\pagina.exe.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
