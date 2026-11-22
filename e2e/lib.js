@@ -92,6 +92,19 @@ una parola sola: parola
 
 Fine.
 `,
+  s10: `Un paragrafo prima della tabella larga.
+
+| Descrizione estesa uno | Descrizione estesa due | Descrizione estesa tre | Descrizione estesa quattro | Descrizione estesa cinque | Descrizione estesa sei | Descrizione estesa sette | Descrizione estesa otto |
+|---|---|---|---|---|---|---|---|
+| contenuto abbastanza lungo uno | contenuto abbastanza lungo due | contenuto abbastanza lungo tre | contenuto abbastanza lungo quattro | contenuto abbastanza lungo cinque | contenuto abbastanza lungo sei | contenuto abbastanza lungo sette | contenuto abbastanza lungo otto |
+| altro testo piuttosto lungo uno | altro testo piuttosto lungo due | altro testo piuttosto lungo tre | altro testo piuttosto lungo quattro | altro testo piuttosto lungo cinque | altro testo piuttosto lungo sei | altro testo piuttosto lungo sette | altro testo piuttosto lungo otto |
+
+Un paragrafo dopo la tabella.
+
+| Breve | Corta |
+|-------|-------|
+| a     | b     |
+`,
   s09: `# Titolo di prova
 
 Primo paragrafo, lontano dal blocco che si modifica.
@@ -118,6 +131,7 @@ export const specFiles = [
   { name: 's08-dialoghi', noFile: true, settings: DARK },
   { name: 's08b-dialoghi-chiaro', noFile: true, settings: { ...DARK, theme: 'light' } },
   { name: 's09-file-esterno', file: 'esterno.md', content: MAT.s09, settings: DARK },
+  { name: 's10-tabella-larga', file: 'tabella-larga.md', content: MAT.s10, settings: DARK },
   // giro delle schermate per l'analisi del design: solo con E2E_ONLY=design-scuro,design-chiaro
   { name: 'design-scuro', noFile: true, dev: true, settings: DARK },
   { name: 'design-chiaro', noFile: true, dev: true, settings: { ...DARK, theme: 'light' } }

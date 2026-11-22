@@ -29,7 +29,59 @@
     closed: () => render(false, true)
   });
 
+  // Tabelle piu' larghe della colonna di testo: escono dalla colonna fino alla larghezza del riquadro meno 32px per lato,
+  // centrate rispetto al riquadro (la colonna e' centrata nel riquadro, quindi basta un margine sinistro negativo).
+  // Niente transform: la barra della tabella e la cella in modifica restano dove sono.
+  const TABLE_GUTTER = 32;
+  const watched = new Set<Element>();
+  let tableRO: ResizeObserver | undefined;
+  let layoutFrame = 0;
+
+  function layoutTables() {
+    layoutFrame = 0;
+    if (!scroller || !container || scroller.clientWidth === 0) return; // riquadro nascosto
+    const cs = getComputedStyle(container);
+    const colW = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const cap = Math.max(0, scroller.clientWidth - 2 * TABLE_GUTTER);
+    const tables = Array.from(container.querySelectorAll<HTMLElement>(':scope > table'));
+    for (const el of watched) {
+      if (!el.isConnected) {
+        tableRO?.unobserve(el);
+        watched.delete(el);
+      }
+    }
+    for (const t of tables) {
+      if (!watched.has(t)) {
+        watched.add(t);
+        tableRO?.observe(t);
+      }
+      const bar = t.previousElementSibling?.classList.contains('table-bar')
+        ? (t.previousElementSibling as HTMLElement)
+        : null;
+      t.style.maxWidth = `${cap}px`;
+      t.style.marginLeft = '';
+      const tw = t.offsetWidth;
+      if (tw > colW + 0.5) {
+        const left = `${(colW - tw) / 2}px`;
+        t.style.marginLeft = left;
+        if (bar) bar.style.marginLeft = left;
+      } else {
+        t.style.maxWidth = '';
+        if (bar) bar.style.marginLeft = '';
+      }
+    }
+  }
+  function scheduleLayout() {
+    if (!layoutFrame) layoutFrame = requestAnimationFrame(layoutTables);
+  }
+
   onMount(() => {
+    tableRO = new ResizeObserver(scheduleLayout);
+    tableRO.observe(scroller);
+    tableRO.observe(container);
+    const mo = new MutationObserver(scheduleLayout);
+    mo.observe(container, { childList: true });
+    scheduleLayout();
     store.blockHooks = {
       change: (t, changes) => ctrl.onDocChange(t, changes),
       reload: (t) => ctrl.onReload(t),
@@ -37,8 +89,11 @@
         if (ctrl.isOpen && (!t || ctrl.tab === t)) ctrl.closeAll({ removeEmpty: true });
       }
     };
+    return () => mo.disconnect();
   });
   onDestroy(() => {
+    if (layoutFrame) cancelAnimationFrame(layoutFrame);
+    tableRO?.disconnect();
     store.blockHooks = null;
     ctrl.closeAll({ silent: true, removeEmpty: ctrl.tab ? store.tabs.includes(ctrl.tab) : false });
   });
