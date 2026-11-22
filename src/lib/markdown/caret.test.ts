@@ -79,3 +79,13 @@ describe('caretOffset: ripiego', () => {
     expect(caretOffset('abc def', 'abc d')).toBe(5);
   });
 });
+
+describe('cursore in un paragrafo di più righe (con a capo singoli resi come <br>)', () => {
+  const src = 'prima riga\nseconda riga\nterza';
+  it('il testo prima del clic, a capo compreso, punta alla riga giusta', () => {
+    // Range.toString() porta con sé l'"\n" dopo ogni <br>: gli spazi non contano.
+    expect(caretOffset(src, 'prima riga\nsecond')).toBe(src.indexOf('second') + 6);
+    expect(caretOffset(src, 'prima riga\nseconda riga\nter')).toBe(src.indexOf('ter') + 3);
+    expect(caretOffset(src, 'prima riga\n')).toBe('prima riga'.length);
+  });
+});

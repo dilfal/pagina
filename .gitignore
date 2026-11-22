@@ -12,3 +12,6 @@ dist
 src-tauri/target
 src-tauri/gen
 out
+prove/schermate/
+prove/immagini/
+prove/design/

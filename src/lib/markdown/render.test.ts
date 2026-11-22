@@ -132,3 +132,30 @@ describe('tabelle e altro GFM', () => {
     expect(root.querySelector('s')).not.toBeNull();
   });
 });
+
+describe('a capo singolo (breaks)', () => {
+  const src = 'prima riga\nseconda riga\n\n```\nuna\ndue\n```\n\n| a |\n|---|\n| x |';
+  it('con l\'opzione attiva un a capo singolo produce <br> e il sorgente resta com\'è', () => {
+    const html = renderMarkdown(src, { breaks: true });
+    expect(html).toContain('prima riga<br>');
+    expect(html).toContain('seconda riga');
+    expect(src).toBe('prima riga\nseconda riga\n\n```\nuna\ndue\n```\n\n| a |\n|---|\n| x |');
+  });
+  it('con l\'opzione spenta (e di default) non produce <br>', () => {
+    expect(renderMarkdown(src, { breaks: false })).not.toContain('<br');
+    expect(renderMarkdown(src)).not.toContain('<br');
+  });
+  it('i blocchi di codice e le tabelle non cambiano; gli intervalli di righe nemmeno', () => {
+    const on = renderBlocks(src, true);
+    const off = renderBlocks(src, false);
+    expect(on.map((b) => [b.start, b.end])).toEqual(off.map((b) => [b.start, b.end]));
+    expect(on[1].html).toBe(off[1].html);
+    expect(on[1].html).not.toContain('<br');
+    expect(on[2].html).toBe(off[2].html);
+  });
+  it('si può accendere e spegnere in sequenza (l\'istanza è condivisa)', () => {
+    expect(renderMarkdown('a\nb', { breaks: true })).toContain('<br');
+    expect(renderMarkdown('a\nb', { breaks: false })).not.toContain('<br');
+    expect(renderMarkdown('a\nb', { breaks: true })).toContain('<br');
+  });
+});

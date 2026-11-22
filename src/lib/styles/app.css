@@ -19,8 +19,10 @@
   --btn-hover: #e4e7eb;
   --accent: #0969da;
   --accent-fg: #ffffff;
-  --active-line: #f4f7fb;
+  --active-line: rgba(0, 40, 100, 0.04);
   --selection: #b6d7ff;
+  --danger: #cf222e;
+  --danger-fg: #ffffff;
   --match: #fff0a0;
   --match-selected: #ffd24d;
   --warn-bg: #fff8c5;
@@ -46,8 +48,10 @@
   --btn-hover: #323842;
   --accent: #4493f8;
   --accent-fg: #0b0d10;
-  --active-line: #20252b;
+  --active-line: rgba(255, 255, 255, 0.03);
   --selection: #264f78;
+  --danger: #da3633;
+  --danger-fg: #ffffff;
   --match: #5b4a12;
   --match-selected: #8a6d12;
   --warn-bg: #3a3112;
@@ -56,6 +60,13 @@
   --code-bg: #161b22;
   --quote: #8b949e;
   --link: #58a6ff;
+}
+
+/* Selezione del testo fuori da CodeMirror (anteprima, celle delle tabelle, interfaccia). Dentro .cm-line la nasconde
+   CodeMirror con !important, perche la disegna da se. */
+::selection {
+  background: var(--selection);
+  color: inherit;
 }
 
 * {

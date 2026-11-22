@@ -21,8 +21,12 @@ const baseTheme = EditorView.theme({
   '.cm-line': { padding: '0 22px' },
   '.cm-activeLine': { backgroundColor: 'var(--active-line)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--fg)' },
-  '.cm-selectionBackground, &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-content ::selection':
-    { backgroundColor: 'var(--selection)' },
+  // Un selettore piu specifico di quelli del tema base di CodeMirror (`&dark .cm-selectionBackground`,
+  // `&dark.cm-focused > ...`, e i `&light` corrispondenti): `.cm-editor` in piu li batte in entrambi i temi,
+  // con o senza focus, a prescindere dall'ordine di inserimento. La selezione nativa dentro .cm-line resta
+  // trasparente (la nasconde CodeMirror con !important): niente doppia selezione.
+  '&.cm-editor .cm-selectionBackground, &.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground':
+    { background: 'var(--selection)' },
   '.cm-panels': { backgroundColor: 'var(--panel-bg)', color: 'var(--fg)' },
   '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--border)' },
   '.cm-panel.cm-search': { padding: '6px 28px 6px 10px', fontFamily: 'var(--sans)' },

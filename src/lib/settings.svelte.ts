@@ -9,6 +9,8 @@ class Settings {
   systemDark = $state(false);
   splitRatio = $state(0.5);
   showFormatBar = $state(true);
+  /** Un a capo singolo nel sorgente va a capo anche nell'anteprima. */
+  singleBreaks = $state(true);
   private store: Store | null = null;
 
   get resolvedTheme(): 'light' | 'dark' {
@@ -25,9 +27,11 @@ class Settings {
       const lg = await this.store.get<LangPref>('lang');
       const sp = await this.store.get<number>('splitRatio');
       const fb = await this.store.get<boolean>('formatBar');
+      const sb = await this.store.get<boolean>('singleBreaks');
       if (th === 'light' || th === 'dark' || th === 'system') this.theme = th;
       if (lg === 'it' || lg === 'en' || lg === 'system') i18n.pref = lg;
       if (typeof fb === 'boolean') this.showFormatBar = fb;
+      if (typeof sb === 'boolean') this.singleBreaks = sb;
       if (typeof sp === 'number' && sp > 0.15 && sp < 0.85) this.splitRatio = sp;
     } catch (e) {
       console.warn('settings non disponibili', e);
@@ -52,6 +56,11 @@ class Settings {
   async setFormatBar(v: boolean) {
     this.showFormatBar = v;
     await this.persist('formatBar', v);
+  }
+
+  async setSingleBreaks(v: boolean) {
+    this.singleBreaks = v;
+    await this.persist('singleBreaks', v);
   }
 
   private async persist(key: string, value: unknown) {

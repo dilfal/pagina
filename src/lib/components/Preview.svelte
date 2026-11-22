@@ -16,6 +16,7 @@
   let renderedId: string | null = null;
   let token = 0;
   let renderedRev = -1;
+  let renderedBreaks: boolean | null = null;
 
   const ctrl = new BlockController({
     get container() {
@@ -23,7 +24,8 @@
     },
     getTab: () => tab,
     render: () => render(false, true),
-    isFresh: () => renderedRev === tab.rev && renderedId === tab.id,
+    isFresh: () =>
+      renderedRev === tab.rev && renderedId === tab.id && renderedBreaks === settings.singleBreaks,
     closed: () => render(false, true)
   });
 
@@ -52,9 +54,11 @@
     // un blocco aperto non si distrugge: l'anteprima si ridisegna alla sua chiusura
     if (ctrl.isOpen && !force) return;
     renderedRev = tab.rev;
+    renderedBreaks = settings.singleBreaks;
     const html = renderMarkdown(tab.cm.doc.toString(), {
       baseDir: tab.dir,
-      convertSrc: convertFileSrc
+      convertSrc: convertFileSrc,
+      breaks: settings.singleBreaks
     });
     const keep = restoreSaved ? tab.previewScroll : scroller.scrollTop;
     container.innerHTML = html;
@@ -68,6 +72,7 @@
     const id = tab.id;
     void tab.rev;
     void tab.path;
+    void settings.singleBreaks;
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (renderedId !== id) {
       renderedId = id;

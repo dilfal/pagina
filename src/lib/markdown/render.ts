@@ -11,6 +11,8 @@ export interface RenderOptions {
   baseDir?: string | null;
   /** In Tauri: `convertFileSrc`. */
   convertSrc?: (path: string) => string;
+  /** Un a capo singolo nel sorgente diventa un <br> (come Obsidian e i commenti di GitHub). */
+  breaks?: boolean;
 }
 
 export interface RenderedBlock {
@@ -101,8 +103,9 @@ const getMd = () => (mdInstance ??= createMarkdown());
  * il proprio intervallo di righe, così in seguito si potrà sostituire un solo
  * blocco senza ridisegnare il resto.
  */
-export function renderBlocks(source: string): RenderedBlock[] {
+export function renderBlocks(source: string, breaks = false): RenderedBlock[] {
   const md = getMd();
+  md.options.breaks = breaks;
   const env: Record<string, unknown> = {};
   const tokens = md.parse(source, env);
   const blocks: RenderedBlock[] = [];
@@ -161,7 +164,7 @@ export function sanitize(html: string, opts: RenderOptions = {}): string {
 }
 
 export function renderMarkdown(source: string, opts: RenderOptions = {}): string {
-  const html = renderBlocks(source)
+  const html = renderBlocks(source, opts.breaks ?? false)
     .map((b) => b.html)
     .join('');
   return sanitize(html, opts);

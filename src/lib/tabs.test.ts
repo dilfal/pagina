@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Tauri non c'è nei test: dialoghi, store e comandi Rust sono sostituiti da finti.
-vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn(), open: vi.fn(), save: vi.fn() }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }));
+vi.mock('./dialog.svelte', () => ({ askConfirm: vi.fn() }));
 vi.mock('@tauri-apps/plugin-store', () => ({ load: vi.fn() }));
 vi.mock('./fileApi', () => ({
   readTextFile: vi.fn(),
@@ -12,7 +13,8 @@ vi.mock('./fileApi', () => ({
   errorMessage: (e: unknown) => String((e as { message?: string })?.message ?? e)
 }));
 
-import { ask, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { askConfirm as ask } from './dialog.svelte';
 import * as api from './fileApi';
 import { Tab, store } from './tabs.svelte';
 

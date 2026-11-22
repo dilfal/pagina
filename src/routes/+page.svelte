@@ -4,13 +4,14 @@
   import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { getVersion } from '@tauri-apps/api/app';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-  import { message } from '@tauri-apps/plugin-dialog';
   import Editor from '$lib/components/Editor.svelte';
   import Preview from '$lib/components/Preview.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
   import Banner from '$lib/components/Banner.svelte';
   import FormatBar from '$lib/components/FormatBar.svelte';
   import Welcome from '$lib/components/Welcome.svelte';
+  import Dialog from '$lib/components/Dialog.svelte';
+  import { isDialogOpen, showMessage } from '$lib/dialog.svelte';
   import { store } from '$lib/tabs.svelte';
   import { settings } from '$lib/settings.svelte';
   import { i18n, t } from '$lib/i18n/index.svelte';
@@ -24,6 +25,16 @@
   let dropping = $state(false);
   let panes: HTMLDivElement | undefined = $state();
   let resizing = false;
+  let closing = false;
+
+  // Le scorciatoie del menu (accelerator nativi) non devono agire mentre c'è un dialogo aperto.
+  function guardActions<T extends Record<string, (...a: never[]) => unknown>>(actions: T): T {
+    const out: Record<string, unknown> = {};
+    for (const [k, f] of Object.entries(actions)) {
+      out[k] = (...a: never[]) => (isDialogOpen() ? undefined : f(...a));
+    }
+    return out as T;
+  }
 
   const active = $derived(store.active);
   const mode = $derived(active?.mode ?? null);
@@ -51,9 +62,10 @@
       tr: (k) => t(k),
       mode,
       formatBar: settings.showFormatBar,
+      singleBreaks: settings.singleBreaks,
       theme: settings.theme,
       lang: i18n.pref,
-      actions: {
+      actions: guardActions({
         newTab: () => store.newTab(),
         open: () => void store.openWithDialog(),
         save: () => void store.saveActive(false),
@@ -62,15 +74,21 @@
         quit: () => void getCurrentWindow().close(),
         setMode: (m) => store.setMode(m),
         toggleFormatBar: () => void settings.setFormatBar(!settings.showFormatBar),
+        toggleSingleBreaks: () => void settings.setSingleBreaks(!settings.singleBreaks),
         nextTab: () => store.cycle(1),
         prevTab: () => store.cycle(-1),
         setTheme: (v) => void settings.setTheme(v),
         setLang: (v) => void settings.setLang(v),
         about: async () => {
           const version = await getVersion().catch(() => '0.1.0');
-          await message(t('about.message', { version }), { title: t('menu.about'), kind: 'info' });
+          await showMessage({
+            message: t('about.message', { version }),
+            title: t('menu.about'),
+            okLabel: t('dialog.ok'),
+            kind: 'info'
+          });
         }
-      }
+      })
     });
   });
 
@@ -104,7 +122,14 @@
       await keep(
         getCurrentWindow().onCloseRequested(async (e) => {
           e.preventDefault();
-          if (await store.confirmQuit()) await getCurrentWindow().destroy();
+          // Una seconda richiesta di chiusura (clic sulla X col dialogo già aperto) non ne apre un altro.
+          if (closing) return;
+          closing = true;
+          try {
+            if (await store.confirmQuit()) await getCurrentWindow().destroy();
+          } finally {
+            closing = false;
+          }
         })
       );
       // Solo ora, con i listener già registrati, si leggono i file in coda (primo avvio e secondi avvii troppo precoci).
@@ -184,6 +209,8 @@
       <div class="drop">{t('drop.hint')}</div>
     {/if}
   </div>
+
+  <Dialog />
 
   {#if store.notice}
     <div class="notice" role="status">{store.notice}</div>

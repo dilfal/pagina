@@ -1,10 +1,11 @@
 import { EditorState, Transaction, type ChangeSet, type Text, type TransactionSpec } from '@codemirror/state';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
-import { ask, open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { askConfirm } from './dialog.svelte';
 import * as api from './fileApi';
 import { basename, dirname, normPath } from './paths';
 import { createState, focusTracker } from './editor/extensions';
-import { i18n, t } from './i18n/index.svelte';
+import { i18n, t, tn } from './i18n/index.svelte';
 import { settings } from './settings.svelte';
 import { taskToggleChange } from './markdown/tasks';
 
@@ -264,7 +265,8 @@ class TabsStore {
         ? this.tabs.find((x) => x.id !== tab.id && x.path && normPath(x.path) === normPath(path!))
         : undefined;
     if (other?.dirty) {
-      const ok = await ask(t('confirm.overwriteOpen', { name: basename(path) }), {
+      const ok = await askConfirm({
+        message: t('confirm.overwriteOpen', { name: basename(path) }),
         title: t('confirm.title'),
         kind: 'warning',
         okLabel: t('confirm.overwrite'),
@@ -381,7 +383,8 @@ class TabsStore {
   private async prepareClose(tab: Tab): Promise<boolean> {
     if (tab.path && !tab.conflict && tab.dirty) await this.save(tab, { auto: true });
     if (!tab.dirty) return true;
-    return ask(t('confirm.closeTab', { name: tab.name }), {
+    return askConfirm({
+      message: t('confirm.closeTab', { name: tab.name }),
       title: t('confirm.title'),
       kind: 'warning',
       okLabel: t('confirm.discard'),
@@ -422,7 +425,8 @@ class TabsStore {
     );
     const n = this.tabs.filter((x) => x.dirty).length;
     if (n === 0) return true;
-    return ask(t('confirm.closeWindow', { n }), {
+    return askConfirm({
+      message: tn('confirm.closeWindow', n),
       title: t('confirm.title'),
       kind: 'warning',
       okLabel: t('confirm.discard'),
