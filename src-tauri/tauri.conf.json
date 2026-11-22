@@ -50,7 +50,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -61,23 +63,25 @@
     "fileAssociations": [
       {
         "ext": [
-          "md"
-        ],
-        "name": "Markdown",
-        "description": "Documento Markdown",
-        "role": "Editor",
-        "mimeType": "text/markdown"
-      },
-      {
-        "ext": [
+          "md",
           "markdown"
         ],
-        "name": "Markdown",
+        "name": "Documento Markdown",
         "description": "Documento Markdown",
         "role": "Editor",
         "mimeType": "text/markdown"
       }
     ],
-    "shortDescription": "Editor e lettore Markdown"
+    "shortDescription": "Editor e lettore Markdown",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Italian",
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }

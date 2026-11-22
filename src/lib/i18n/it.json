@@ -32,6 +32,7 @@
   "welcome.subtitle": "Scrivi e leggi file Markdown.",
   "welcome.new": "Nuovo file",
   "welcome.open": "Apri un file…",
+  "welcome.hint": "Ctrl+N nuovo · Ctrl+O apri · oppure trascina qui un file",
   "dialog.filterMarkdown": "Markdown e testo",
   "dialog.filterAll": "Tutti i file",
   "confirm.title": "Pagina",

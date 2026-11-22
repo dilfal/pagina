@@ -8,20 +8,21 @@
   color-scheme: light;
   --bg: #f6f7f9;
   --fg: #1f2328;
-  --muted: #656d76;
+  --muted: #59636e;
   --border: #d0d7de;
   --editor-bg: #ffffff;
   --preview-bg: #ffffff;
   --panel-bg: #f0f2f5;
-  --tab-bg: #e9ecf0;
+  --tab-bg: #e4e8ed;
   --tab-active-bg: #ffffff;
   --btn-bg: #f3f4f6;
-  --btn-hover: #e4e7eb;
+  --btn-hover: color-mix(in srgb, var(--fg) 12%, transparent);
   --accent: #0969da;
   --accent-fg: #ffffff;
   --active-line: rgba(0, 40, 100, 0.04);
   --selection: #b6d7ff;
   --danger: #cf222e;
+  --danger-text: #cf222e;
   --danger-fg: #ffffff;
   --match: #fff0a0;
   --match-selected: #ffd24d;
@@ -29,8 +30,16 @@
   --warn-border: #d4a72c;
   --err-bg: #ffebe9;
   --code-bg: #f6f8fa;
-  --quote: #656d76;
+  --quote: #59636e;
   --link: #0969da;
+  --dirty: #0550ae;
+  --scroll-thumb: #848d97;
+  --scroll-thumb-hover: #6e7781;
+  --syn-keyword: #cf222e;
+  --syn-string: #0a3069;
+  --syn-number: #0550ae;
+  --syn-func: #8250df;
+  --syn-type: #953800;
 }
 
 :root[data-theme='dark'] {
@@ -45,12 +54,13 @@
   --tab-bg: #101316;
   --tab-active-bg: #1b1f24;
   --btn-bg: #272c33;
-  --btn-hover: #323842;
+  --btn-hover: color-mix(in srgb, var(--fg) 12%, transparent);
   --accent: #4493f8;
   --accent-fg: #0b0d10;
   --active-line: rgba(255, 255, 255, 0.03);
   --selection: #264f78;
-  --danger: #da3633;
+  --danger: #c62828;
+  --danger-text: #e5534b;
   --danger-fg: #ffffff;
   --match: #5b4a12;
   --match-selected: #8a6d12;
@@ -60,6 +70,14 @@
   --code-bg: #161b22;
   --quote: #8b949e;
   --link: #58a6ff;
+  --dirty: #4493f8;
+  --scroll-thumb: #6e7681;
+  --scroll-thumb-hover: #8b949e;
+  --syn-keyword: #ff7b72;
+  --syn-string: #a5d6ff;
+  --syn-number: #79c0ff;
+  --syn-func: #d2a8ff;
+  --syn-type: #ffa657;
 }
 
 /* Selezione del testo fuori da CodeMirror (anteprima, celle delle tabelle, interfaccia). Dentro .cm-line la nasconde
@@ -71,6 +89,45 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Barre di scorrimento sottili, senza frecce, al posto di quelle grosse di Windows. Si usano i selettori
+   ::-webkit-scrollbar (e non scrollbar-width / scrollbar-color, che in WebView2 lascerebbero le frecce). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: content-box;
+}
+
+/* Focus da tastiera: un solo anello, con il colore dell'accento. Nei controlli compatti (barre, schede) sta
+   all'interno, per non essere tagliato da overflow. L'editor e la cella in modifica hanno il loro segno di fuoco. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cm-content:focus-visible {
+  outline: none;
+}
+.icon-btn:focus-visible,
+.tab:focus-visible,
+.close:focus-visible {
+  outline-offset: -2px;
 }
 
 html,

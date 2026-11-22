@@ -93,4 +93,18 @@
     margin: 0 5px;
     background: var(--border);
   }
+  /* Finestra stretta: pulsanti e separatori piu' compatti, cosi' la barra entra senza barra di scorrimento */
+  @media (max-width: 760px) {
+    .format-bar {
+      gap: 0;
+      padding: 3px 4px;
+    }
+    .format-bar :global(.icon-btn) {
+      min-width: 24px;
+      padding: 0 4px;
+    }
+    .sep {
+      margin: 0 3px;
+    }
+  }
 </style>

@@ -1,11 +1,13 @@
-// Giro delle schermate per l'analisi del design (non è una prova: salva immagini e misure in prove/design).
+// Giro delle schermate per l'analisi del design (non è una prova: salva immagini e misure in prove/design o in E2E_DESIGN_DIR).
 // Lancio: E2E_ONLY=design-scuro,design-chiaro pnpm test:e2e   (escluso dalla corsa normale: dev: true in lib.js)
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, TMP, apri, pronto, sleep, setMode, puntoDel, doppioClic, clic, mouseVero, chiediChiusura, dialogo } from './lib.js';
 
-const OUT = path.join(ROOT, 'prove', 'design');
+// Cartella di uscita: E2E_DESIGN_DIR, relativa a prove\ (o assoluta); predefinita prove\design.
+// Per esempio: E2E_DESIGN_DIR=design/dopo E2E_ONLY=design-scuro,design-chiaro pnpm test:e2e
+const OUT = path.resolve(ROOT, 'prove', process.env.E2E_DESIGN_DIR || 'design');
 
 export const RICCO = `# Guida alla scrittura di una relazione
 

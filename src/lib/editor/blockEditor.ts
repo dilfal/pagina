@@ -12,7 +12,7 @@ import { Prec, type ChangeSet, type Extension, type TransactionSpec } from '@cod
 import { insertNewline, insertNewlineAndIndent } from '@codemirror/commands';
 import { insertNewlineContinueMarkup } from '@codemirror/lang-markdown';
 import { searchPanelOpen } from '@codemirror/search';
-import { blockRange, enterAction, removeEmptyBlock } from '../markdown/blocks';
+import { blockKind, blockRange, enterAction, removeEmptyBlock } from '../markdown/blocks';
 import { caretOffset } from '../markdown/caret';
 import { parseBlockRanges } from '../markdown/render';
 import {
@@ -160,10 +160,10 @@ export class BlockController {
 
   private mount(tab: Tab, replace: HTMLElement | null, atLine: number, range: Span, caret: number) {
     const el = document.createElement('div');
-    el.className = 'block-editor';
+    const text = tab.cm.doc.sliceString(range.from, range.to);
+    el.className = blockKind(text) === 'fence' ? 'block-editor is-code' : 'block-editor';
     if (replace) replace.replaceWith(el);
     else this.insertAtLine(el, atLine);
-    const text = tab.cm.doc.sliceString(range.from, range.to);
     const view = new EditorView({
       parent: el,
       state: createBlockState(text, caret, settings.resolvedTheme === 'dark', i18n.lang, [

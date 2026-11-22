@@ -65,6 +65,9 @@ process.once('uncaughtException', (e) => {
 });
 
 const attivi = specFiles.filter((s) => (process.env.E2E_ONLY ? process.env.E2E_ONLY.split(',').includes(s.name) : !s.dev));
+// Il giro delle schermate del design (spec `dev`) non e' una prova: se la corsa non comprende nessuna spec normale
+// non si toccano ne' e2e/out/results.jsonl ne' prove/esito_automatico.md.
+const corsaNormale = attivi.some((s) => !s.dev);
 
 export const config = {
   runner: 'local',
@@ -92,7 +95,7 @@ export const config = {
     cleaned = false;
     fs.mkdirSync(TMP, { recursive: true });
     fs.mkdirSync(SHOTS, { recursive: true });
-    fs.rmSync(RESULTS, { force: true });
+    if (corsaNormale) fs.rmSync(RESULTS, { force: true });
     // se una corsa interrotta ha lasciato un backup, prima lo si rimette sull'originale; poi si fa il nuovo backup
     restoreSettings();
     fs.writeFileSync(BACKUP, fs.existsSync(SETTINGS) ? fs.readFileSync(SETTINGS) : '__NONE__');
@@ -114,8 +117,8 @@ export const config = {
       driver?.kill();
     } catch {}
     killOurs();
-    // esito scritto in prove/esito_automatico.md
-    spawnSync(process.execPath, [path.join(here, 'genera_esito.mjs')], { stdio: 'inherit' });
+    // esito scritto in prove/esito_automatico.md (solo se la corsa comprende le spec normali)
+    if (corsaNormale) spawnSync(process.execPath, [path.join(here, 'genera_esito.mjs')], { stdio: 'inherit' });
     cleaned = true;
     restoreSettings();
   }

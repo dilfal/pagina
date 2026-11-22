@@ -4,7 +4,7 @@
   padding: 28px 32px 80px;
   color: var(--fg);
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
   word-wrap: break-word;
 }
 
@@ -23,20 +23,23 @@
   line-height: 1.25;
 }
 .markdown-body h1 {
-  font-size: 2em;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--border);
+  font-size: 1.85em;
+  letter-spacing: -0.01em;
 }
 .markdown-body h2 {
-  font-size: 1.5em;
+  margin: 2em 0 0.6em;
+  font-size: 1.4em;
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--border);
 }
 .markdown-body h3 {
-  font-size: 1.25em;
+  font-size: 1.2em;
 }
 .markdown-body h4 {
-  font-size: 1em;
+  font-size: 0.95em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted);
 }
 .markdown-body h5 {
   font-size: 0.875em;
@@ -88,7 +91,7 @@
 .markdown-body blockquote {
   padding: 0 1em;
   color: var(--quote);
-  border-left: 0.25em solid var(--border);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 .markdown-body blockquote > :last-child {
   margin-bottom: 0;
@@ -158,11 +161,15 @@
   padding: 6px 13px;
   border: 1px solid var(--border);
 }
+.markdown-body table {
+  margin-bottom: 1.2em;
+}
 .markdown-body table tr:nth-child(2n) {
-  background: var(--code-bg);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 .markdown-body table th {
   font-weight: 600;
+  background: var(--panel-bg);
 }
 
 .markdown-body .footnotes {
@@ -184,8 +191,11 @@
 }
 
 /* Modifica nell'anteprima: blocco aperto (piccolo CodeMirror) e cella di tabella */
+/* Il blocco aperto tiene carattere, dimensione e interlinea dell'anteprima e lo stesso rientro del testo
+   (bordo 1px + padding 16px = margine negativo di 17px; 8px + 1px di padding verticale compensati dal margine):
+   cosi' il testo non salta all'apertura. I blocchi di codice recintato usano il carattere e le misure del <pre>. */
 .markdown-body .block-editor {
-  margin: 0 0 1em;
+  margin: -9px -17px calc(1em - 9px);
   border: 1px solid var(--accent);
   border-radius: 6px;
   overflow: hidden;
@@ -195,8 +205,21 @@
   height: auto;
   max-height: 70vh;
 }
+.markdown-body .block-editor .cm-scroller {
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.7;
+}
 .markdown-body .block-editor .cm-content {
   padding: 8px 0;
+}
+.markdown-body .block-editor .cm-line {
+  padding: 0 16px;
+}
+.markdown-body .block-editor.is-code .cm-scroller {
+  font-family: var(--mono);
+  font-size: 85%;
+  line-height: 1.45;
 }
 .markdown-body .table-bar {
   display: flex;

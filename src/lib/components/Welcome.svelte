@@ -10,10 +10,13 @@
     <button class="btn primary" onclick={() => store.newTab()}>{t('welcome.new')}</button>
     <button class="btn" onclick={() => store.openWithDialog()}>{t('welcome.open')}</button>
   </div>
+  <p class="hint">{t('welcome.hint')}</p>
 </div>
 
 <style>
   .welcome {
+    flex: 1 1 auto;
+    width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -30,6 +33,10 @@
   }
   p {
     margin: 0 0 14px;
+  }
+  .hint {
+    margin: 16px 0 0;
+    font-size: 12.5px;
   }
   .row {
     display: flex;

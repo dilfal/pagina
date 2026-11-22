@@ -3,7 +3,7 @@ import { EditorView, drawSelection, highlightActiveLine, keymap, type ViewUpdate
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { HighlightStyle, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 import type { Lang } from '../i18n/index.svelte';
@@ -49,11 +49,33 @@ const baseTheme = EditorView.theme({
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'var(--match-selected)' }
 });
 
+// Un solo stile di evidenziazione per tutti e due i temi, scritto con le variabili CSS (app.css).
+// Le etichette (tag) di Lezer si prendono per nome dagli stili gia' presenti in CodeMirror, senza dipendere da
+// @lezer/highlight (che non e' una dipendenza diretta). Non sono raggiungibili da qui `quote` e `monospace`
+// (citazioni e codice in linea del Markdown): restano nel colore del testo.
+const tagByName = new Map<string, any>();
+for (const spec of [...oneDarkHighlightStyle.specs, ...defaultHighlightStyle.specs]) {
+  for (const tag of ([] as any[]).concat(spec.tag)) tagByName.set(String(tag), tag);
+}
+const tg = (...names: string[]) => names.map((n) => tagByName.get(n)).filter(Boolean);
+
+const markdownStyle = HighlightStyle.define([
+  { tag: tg('heading'), fontWeight: 'bold', color: 'var(--fg)' },
+  { tag: tg('strong'), fontWeight: 'bold' },
+  { tag: tg('emphasis'), fontStyle: 'italic' },
+  { tag: tg('strikethrough'), textDecoration: 'line-through' },
+  { tag: tg('link'), color: 'var(--link)', textDecoration: 'none' },
+  { tag: tg('url'), color: 'var(--muted)' },
+  { tag: tg('processingInstruction', 'contentSeparator', 'meta', 'comment'), color: 'var(--muted)' },
+  { tag: tg('keyword', 'operator', 'operatorKeyword', 'deleted', 'invalid'), color: 'var(--syn-keyword)' },
+  { tag: tg('string', 'inserted', 'character', 'escape', 'regexp', 'special(string)'), color: 'var(--syn-string)' },
+  { tag: tg('number', 'atom', 'bool', 'color', 'constant(name)', 'standard(name)', 'special(variableName)'), color: 'var(--syn-number)' },
+  { tag: tg('function(variableName)', 'labelName'), color: 'var(--syn-func)' },
+  { tag: tg('typeName', 'className', 'namespace', 'changed', 'annotation', 'modifier', 'self'), color: 'var(--syn-type)' }
+]);
+
 export function themeExtension(dark: boolean): Extension {
-  return [
-    EditorView.darkTheme.of(dark),
-    syntaxHighlighting(dark ? oneDarkHighlightStyle : defaultHighlightStyle, { fallback: true })
-  ];
+  return [EditorView.darkTheme.of(dark), syntaxHighlighting(markdownStyle, { fallback: true })];
 }
 
 const itPhrases: Record<string, string> = {

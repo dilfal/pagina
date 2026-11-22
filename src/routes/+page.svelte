@@ -170,7 +170,13 @@
   {/if}
 
   {#if active && settings.showFormatBar}
-    <FormatBar />
+    <!-- in «Solo anteprima» la barra è fluttuante sopra l'anteprima (non sposta il contenuto) e si ripiega finché non si apre un blocco -->
+    {@const collapsed = mode === 'preview' && !active.blockOpen}
+    <div class="format-anchor" class:floating={mode === 'preview'}>
+      <div class="format-wrap" class:collapsed inert={collapsed}>
+        <div class="format-inner"><FormatBar /></div>
+      </div>
+    </div>
   {/if}
 
   <div class="workspace" bind:this={panes}>
@@ -226,6 +232,48 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+  }
+  .format-anchor {
+    display: contents;
+  }
+  .format-anchor.floating {
+    display: block;
+    position: relative;
+    flex: none;
+    height: 0;
+    z-index: 6;
+  }
+  .format-anchor.floating .format-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--panel-bg);
+  }
+  .format-anchor.floating .format-wrap:not(.collapsed) {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.14);
+  }
+  .format-wrap {
+    display: grid;
+    grid-template-rows: 1fr;
+    flex: none;
+    transition: grid-template-rows 120ms ease;
+  }
+  .format-wrap.collapsed {
+    grid-template-rows: 0fr;
+  }
+  .format-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .format-wrap.collapsed .format-inner {
+    visibility: hidden;
+    transition: visibility 0s 120ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .format-wrap {
+      transition: none;
+    }
   }
   .workspace {
     position: relative;
