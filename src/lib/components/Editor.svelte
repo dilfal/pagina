@@ -5,6 +5,7 @@
     createState,
     phrasesComp,
     phrasesExtension,
+    setImagePasteHandler,
     setUpdateHandler,
     themeComp,
     themeExtension
@@ -12,6 +13,7 @@
   import { store } from '../tabs.svelte';
   import { settings } from '../settings.svelte';
   import { i18n } from '../i18n/index.svelte';
+  import { handleImagePaste } from '../editor/images';
 
   let host: HTMLDivElement;
   let view: EditorView | undefined;
@@ -19,12 +21,14 @@
 
   onMount(() => {
     setUpdateHandler((u) => store.handleUpdate(u));
+    setImagePasteHandler((v, files) => void handleImagePaste(v, files));
     view = new EditorView({
       parent: host,
       state: createState('', settings.resolvedTheme === 'dark', i18n.lang)
     });
     store.view = view;
     return () => {
+      setImagePasteHandler(null);
       view?.destroy();
       store.view = null;
     };

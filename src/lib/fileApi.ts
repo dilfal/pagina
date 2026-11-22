@@ -34,3 +34,13 @@ export function errorMessage(e: unknown): string {
   if (typeof e === 'object' && e !== null && 'message' in e) return String((e as FileError).message);
   return String(e);
 }
+
+/** Salva un'immagine incollata accanto al documento; restituisce `immagini/<nome>`. */
+export const savePastedImage = (mdPath: string, bytes: Uint8Array, ext: string) =>
+  invoke<string>('save_pasted_image', bytes, {
+    headers: { 'x-md-path': encodeURIComponent(mdPath), 'x-ext': ext }
+  });
+
+/** Copia un'immagine scelta dall'utente accanto al documento; restituisce `immagini/<nome>`. */
+export const importImage = (mdPath: string, srcPath: string) =>
+  invoke<string>('import_image', { mdPath, srcPath });

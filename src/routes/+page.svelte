@@ -9,6 +9,7 @@
   import Preview from '$lib/components/Preview.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
   import Banner from '$lib/components/Banner.svelte';
+  import FormatBar from '$lib/components/FormatBar.svelte';
   import Welcome from '$lib/components/Welcome.svelte';
   import { store } from '$lib/tabs.svelte';
   import { settings } from '$lib/settings.svelte';
@@ -49,6 +50,7 @@
     void installMenu({
       tr: (k) => t(k),
       mode,
+      formatBar: settings.showFormatBar,
       theme: settings.theme,
       lang: i18n.pref,
       actions: {
@@ -59,6 +61,7 @@
         closeTab: () => void store.closeActive(),
         quit: () => void getCurrentWindow().close(),
         setMode: (m) => store.setMode(m),
+        toggleFormatBar: () => void settings.setFormatBar(!settings.showFormatBar),
         nextTab: () => store.cycle(1),
         prevTab: () => store.cycle(-1),
         setTheme: (v) => void settings.setTheme(v),
@@ -139,6 +142,10 @@
   <TabBar />
   {#if active}
     <Banner tab={active} />
+  {/if}
+
+  {#if active && settings.showFormatBar}
+    <FormatBar />
   {/if}
 
   <div class="workspace" bind:this={panes}>

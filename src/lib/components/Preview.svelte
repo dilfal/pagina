@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { convertFileSrc } from '@tauri-apps/api/core';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { renderMarkdown } from '../markdown/render';
   import { highlightPending } from '../markdown/highlight';
   import { store, type Tab } from '../tabs.svelte';
+  import { BlockController } from '../editor/blockEditor';
+  import { settings } from '../settings.svelte';
+  import { i18n } from '../i18n/index.svelte';
 
   let { tab }: { tab: Tab } = $props();
 
@@ -12,8 +15,43 @@
   let container: HTMLDivElement;
   let renderedId: string | null = null;
   let token = 0;
+  let renderedRev = -1;
 
-  function render(restoreSaved: boolean) {
+  const ctrl = new BlockController({
+    get container() {
+      return container;
+    },
+    getTab: () => tab,
+    render: () => render(false, true),
+    isFresh: () => renderedRev === tab.rev && renderedId === tab.id,
+    closed: () => render(false, true)
+  });
+
+  onMount(() => {
+    store.blockHooks = {
+      change: (t, changes) => ctrl.onDocChange(t, changes),
+      reload: (t) => ctrl.onReload(t),
+      close: (t) => {
+        if (ctrl.isOpen && (!t || ctrl.tab === t)) ctrl.closeAll({ removeEmpty: true });
+      }
+    };
+  });
+  onDestroy(() => {
+    store.blockHooks = null;
+    ctrl.closeAll({ silent: true, removeEmpty: ctrl.tab ? store.tabs.includes(ctrl.tab) : false });
+  });
+
+  // Tema e lingua del blocco aperto.
+  $effect(() => {
+    const dark = settings.resolvedTheme === 'dark';
+    const lang = i18n.lang;
+    untrack(() => ctrl.reconfigure(dark, lang));
+  });
+
+  function render(restoreSaved: boolean, force = false) {
+    // un blocco aperto non si distrugge: l'anteprima si ridisegna alla sua chiusura
+    if (ctrl.isOpen && !force) return;
+    renderedRev = tab.rev;
     const html = renderMarkdown(tab.cm.doc.toString(), {
       baseDir: tab.dir,
       convertSrc: convertFileSrc
@@ -33,7 +71,12 @@
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (renderedId !== id) {
       renderedId = id;
-      untrack(() => render(true));
+      untrack(() => {
+        // cambio scheda: il contenuto del blocco è già nel documento della scheda che si lascia
+        const prev = ctrl.tab;
+        ctrl.closeAll({ silent: true, removeEmpty: prev ? store.tabs.includes(prev) : false });
+        render(true);
+      });
     } else {
       timer = setTimeout(() => untrack(() => render(false)), 150);
     }
@@ -53,8 +96,27 @@
     el?.scrollIntoView({ block: 'start' });
   }
 
+  /** L'elemento di primo livello dell'anteprima che contiene `el`. */
+  function topLevel(el: HTMLElement): HTMLElement | null {
+    let cur: HTMLElement | null = el;
+    while (cur && cur.parentElement !== container) cur = cur.parentElement;
+    return cur && cur.hasAttribute('data-source-start') ? cur : null;
+  }
+
+  function onDblClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (ctrl.isOpen || !container.contains(target) || target.closest('input')) return;
+    const top = topLevel(target);
+    if (!top) return;
+    const point = { x: e.clientX, y: e.clientY };
+    const cell = target.closest<HTMLElement>('td, th');
+    if (cell && top.tagName === 'TABLE' && top.contains(cell)) ctrl.openCell(top, cell, point);
+    else ctrl.openBlock(top, point);
+  }
+
   function onClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
+    if (target.closest('.block-editor, .table-bar, .cell-editing')) return;
     const box = target.closest<HTMLInputElement>('input.task-list-item-checkbox');
     if (box) {
       const line = Number(box.dataset.taskLine);
@@ -80,6 +142,7 @@
   bind:this={scroller}
   onscroll={() => (tab.previewScroll = scroller.scrollTop)}
   onclick={onClick}
+  ondblclick={onDblClick}
 >
   <div class="markdown-body" bind:this={container}></div>
 </div>

@@ -134,6 +134,15 @@ impl WatcherState {
         Ok(())
     }
 
+    /// Il file è tra quelli aperti (sorvegliati) dal programma.
+    pub fn is_open(&self, path: &str) -> bool {
+        self.registry
+            .lock()
+            .unwrap()
+            .lookup(&norm_path(path))
+            .is_some()
+    }
+
     pub fn unwatch(&self, path: &str) {
         let Some(dir) = Path::new(path).parent().map(|d| d.to_path_buf()) else {
             return;

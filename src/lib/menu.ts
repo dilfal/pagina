@@ -6,6 +6,7 @@ import type { ViewMode } from './tabs.svelte';
 export interface MenuState {
   tr: (key: Key) => string;
   mode: ViewMode | null;
+  formatBar: boolean;
   theme: ThemePref;
   lang: LangPref;
   actions: {
@@ -16,6 +17,7 @@ export interface MenuState {
     closeTab: () => void;
     quit: () => void;
     setMode: (m: ViewMode) => void;
+    toggleFormatBar: () => void;
     nextTab: () => void;
     prevTab: () => void;
     setTheme: (t: ThemePref) => void;
@@ -74,6 +76,8 @@ async function build(s: MenuState) {
       await check(tr('menu.viewEdit'), s.mode === 'edit', () => a.setMode('edit'), 'CmdOrCtrl+1'),
       await check(tr('menu.viewSplit'), s.mode === 'split', () => a.setMode('split'), 'CmdOrCtrl+2'),
       await check(tr('menu.viewPreview'), s.mode === 'preview', () => a.setMode('preview'), 'CmdOrCtrl+3'),
+      await PredefinedMenuItem.new({ item: 'Separator' }),
+      await check(tr('menu.formatBar'), s.formatBar, a.toggleFormatBar),
       await PredefinedMenuItem.new({ item: 'Separator' }),
       await item(tr('menu.nextTab'), a.nextTab, 'Ctrl+Tab'),
       await item(tr('menu.prevTab'), a.prevTab, 'Ctrl+Shift+Tab'),

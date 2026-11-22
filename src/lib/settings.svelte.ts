@@ -8,6 +8,7 @@ class Settings {
   /** Il tema del sistema, aggiornato in tempo reale. */
   systemDark = $state(false);
   splitRatio = $state(0.5);
+  showFormatBar = $state(true);
   private store: Store | null = null;
 
   get resolvedTheme(): 'light' | 'dark' {
@@ -23,8 +24,10 @@ class Settings {
       const th = await this.store.get<ThemePref>('theme');
       const lg = await this.store.get<LangPref>('lang');
       const sp = await this.store.get<number>('splitRatio');
+      const fb = await this.store.get<boolean>('formatBar');
       if (th === 'light' || th === 'dark' || th === 'system') this.theme = th;
       if (lg === 'it' || lg === 'en' || lg === 'system') i18n.pref = lg;
+      if (typeof fb === 'boolean') this.showFormatBar = fb;
       if (typeof sp === 'number' && sp > 0.15 && sp < 0.85) this.splitRatio = sp;
     } catch (e) {
       console.warn('settings non disponibili', e);
@@ -44,6 +47,11 @@ class Settings {
   async setSplit(v: number) {
     this.splitRatio = v;
     await this.persist('splitRatio', v);
+  }
+
+  async setFormatBar(v: boolean) {
+    this.showFormatBar = v;
+    await this.persist('formatBar', v);
   }
 
   private async persist(key: string, value: unknown) {

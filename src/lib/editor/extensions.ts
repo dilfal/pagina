@@ -1,4 +1,4 @@
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
 import { EditorView, drawSelection, highlightActiveLine, keymap, type ViewUpdate } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -7,6 +7,8 @@ import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 import type { Lang } from '../i18n/index.svelte';
+import { formatKeymap } from './format';
+import { pastedImageFiles } from './imageUtils';
 
 export const themeComp = new Compartment();
 export const phrasesComp = new Compartment();
@@ -79,23 +81,69 @@ export function setUpdateHandler(fn: (u: ViewUpdate) => void) {
   updateHandler = fn;
 }
 
+/** Gestore dell'incolla di immagini (lo registra l'interfaccia: qui non si conosce il resto del programma). */
+let imagePasteHandler: ((view: EditorView, files: File[]) => void) | null = null;
+export function setImagePasteHandler(fn: ((view: EditorView, files: File[]) => void) | null) {
+  imagePasteHandler = fn;
+}
+
+/** L'ultima vista di CodeMirror (editor principale o blocco aperto) che ha avuto il fuoco. */
+export const focusTracker: { last: EditorView | null } = { last: null };
+
+const trackers = [
+  EditorView.domEventHandlers({
+    focus(_e, view) {
+      focusTracker.last = view;
+      return false;
+    },
+    paste(event, view) {
+      const files = pastedImageFiles(event.clipboardData ?? {});
+      if (files.length === 0 || !imagePasteHandler) return false;
+      event.preventDefault();
+      imagePasteHandler(view, files);
+      return true;
+    }
+  })
+];
+
+/** Estensioni comuni all'editor principale e ai blocchi aperti nell'anteprima. */
+export function coreExtensions(dark: boolean, lang: Lang): Extension[] {
+  return [
+    history(),
+    drawSelection(),
+    highlightActiveLine(),
+    highlightSelectionMatches(),
+    EditorView.lineWrapping,
+    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    search({ top: true }),
+    Prec.high(keymap.of(formatKeymap)),
+    keymap.of([...searchKeymap, ...historyKeymap, ...defaultKeymap, indentWithTab]),
+    baseTheme,
+    themeComp.of(themeExtension(dark)),
+    phrasesComp.of(phrasesExtension(lang)),
+    trackers
+  ];
+}
+
 /** Stato di CodeMirror di una scheda: ogni scheda ha il suo, quindi la sua cronologia annulla. */
 export function createState(doc: string, dark: boolean, lang: Lang): EditorState {
   return EditorState.create({
     doc,
-    extensions: [
-      history(),
-      drawSelection(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      EditorView.lineWrapping,
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
-      search({ top: true }),
-      keymap.of([...searchKeymap, ...historyKeymap, ...defaultKeymap, indentWithTab]),
-      baseTheme,
-      themeComp.of(themeExtension(dark)),
-      phrasesComp.of(phrasesExtension(lang)),
-      EditorView.updateListener.of((u) => updateHandler(u))
-    ]
+    extensions: [...coreExtensions(dark, lang), EditorView.updateListener.of((u) => updateHandler(u))]
+  });
+}
+
+/** Stato di un blocco aperto nell'anteprima: stesse estensioni dell'editor, più quelle del blocco. */
+export function createBlockState(
+  doc: string,
+  anchor: number,
+  dark: boolean,
+  lang: Lang,
+  extra: Extension[]
+): EditorState {
+  return EditorState.create({
+    doc,
+    selection: { anchor: Math.max(0, Math.min(anchor, doc.length)) },
+    extensions: [...coreExtensions(dark, lang), ...extra]
   });
 }

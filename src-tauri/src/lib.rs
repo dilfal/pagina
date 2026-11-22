@@ -73,6 +73,71 @@ fn write_text_file(
     files::write_file(&state.known, &path, &content, &eol, bom, force)
 }
 
+fn require_open(state: &AppState, md_path: &str) -> Result<(), FileError> {
+    if state.watcher.is_open(md_path) {
+        Ok(())
+    } else {
+        Err(FileError::io("Il documento non è tra i file aperti"))
+    }
+}
+
+/// Immagine incollata: i byte arrivano come corpo grezzo della chiamata, il percorso del
+/// documento e l'estensione nelle intestazioni `x-md-path` (codificato) e `x-ext`.
+/// Il nome del file lo costruisce `files::save_image`.
+#[tauri::command]
+fn save_pasted_image(
+    state: State<'_, AppState>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<String, FileError> {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+    };
+    let md_path = header("x-md-path")
+        .and_then(|v| files::percent_decode(&v))
+        .ok_or_else(|| FileError::io("Percorso del documento mancante"))?;
+    let ext = header("x-ext").ok_or_else(|| FileError::io("Estensione mancante"))?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(FileError::io("Dati dell'immagine mancanti"));
+    };
+    require_open(&state, &md_path)?;
+    files::save_image(Path::new(&md_path), bytes, &ext)
+}
+
+/// Pulsante «Immagine»: copia nella cartella `immagini` del documento un file scelto dall'utente.
+#[tauri::command]
+fn import_image(
+    state: State<'_, AppState>,
+    md_path: String,
+    src_path: String,
+) -> Result<String, FileError> {
+    require_open(&state, &md_path)?;
+    let src = Path::new(&src_path);
+    let ext = src
+        .extension()
+        .map(|e| e.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    files::image_ext(&ext)?;
+    // solo file normali: niente collegamenti, cartelle o file speciali
+    let link = std::fs::symlink_metadata(src).map_err(FileError::io)?;
+    if link.file_type().is_symlink() {
+        return Err(FileError::io("L'immagine scelta è un collegamento"));
+    }
+    let meta = std::fs::metadata(src).map_err(FileError::io)?;
+    if !meta.is_file() {
+        return Err(FileError::io("L'immagine scelta non è un file normale"));
+    }
+    let len = meta.len();
+    if len > files::MAX_IMAGE_BYTES as u64 {
+        return Err(FileError::io("Immagine troppo grande (massimo 20 MB)"));
+    }
+    let bytes = std::fs::read(src).map_err(FileError::io)?;
+    files::save_image(Path::new(&md_path), &bytes, &ext)
+}
+
 /// Radice di un'unità o cartella home: lì l'accesso alle immagini non è ricorsivo.
 fn is_broad_dir(dir: &Path, home: Option<&Path>) -> bool {
     if dir.parent().is_none() {
@@ -157,6 +222,8 @@ pub fn run() {
             write_text_file,
             watch_file,
             unwatch_file,
+            save_pasted_image,
+            import_image,
             take_launch_files
         ])
         .build(tauri::generate_context!())

@@ -1,9 +1,9 @@
-import { EditorState, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { EditorState, Transaction, type ChangeSet, type Text, type TransactionSpec } from '@codemirror/state';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { ask, open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
 import * as api from './fileApi';
 import { basename, dirname, normPath } from './paths';
-import { createState } from './editor/extensions';
+import { createState, focusTracker } from './editor/extensions';
 import { i18n, t } from './i18n/index.svelte';
 import { settings } from './settings.svelte';
 import { taskToggleChange } from './markdown/tasks';
@@ -24,6 +24,8 @@ export class Tab {
   rev = $state(0);
   eol: '\n' | '\r\n' = '\n';
   bom = false;
+  /** Un blocco (o una cella) è aperto in modifica nell'anteprima. */
+  blockOpen = $state(false);
   /** Il file aveva fine riga misti: l'avviso resta finché non si salva o lo si chiude. */
   mixedEol = $state(false);
   cm: EditorState;
@@ -56,11 +58,22 @@ export function diffChange(oldS: string, newS: string) {
   return { from: a, to: oldS.length - b, insert: newS.slice(a, newS.length - b) };
 }
 
+/** Chi, nell'anteprima, deve sapere come cambia il documento: sposta o chiude il blocco aperto. */
+export interface BlockHooks {
+  change(tab: Tab, changes: ChangeSet): void;
+  reload(tab: Tab): void;
+  /** Chiude il blocco aperto (di `tab`, o di qualunque scheda se null) togliendo un eventuale blocco vuoto. */
+  close(tab: Tab | null): void;
+}
+
 class TabsStore {
   tabs = $state<Tab[]>([]);
   activeId = $state<string | null>(null);
   notice = $state<string | null>(null);
   view: EditorView | null = null;
+  /** Il CodeMirror del blocco aperto nell'anteprima, se c'è. */
+  blockView: EditorView | null = null;
+  blockHooks: BlockHooks | null = null;
   /** Scheda a cui appartiene lo stato attualmente nella vista di CodeMirror. */
   viewTabId: string | null = null;
   private untitledCounter = 0;
@@ -161,7 +174,23 @@ class TabsStore {
     const tab = this.tabs.find((x) => x.id === this.viewTabId);
     if (!tab) return;
     tab.cm = u.state;
-    if (u.docChanged) this.docChanged(tab);
+    if (u.docChanged) {
+      this.docChanged(tab);
+      this.blockHooks?.change(tab, u.changes);
+    }
+  }
+
+  /** La vista su cui agisce la barra di formattazione: l'ultima che ha avuto il fuoco, se è utilizzabile. */
+  formatTarget(): EditorView | null {
+    const tab = this.active;
+    if (!tab) return null;
+    const last = focusTracker.last;
+    if (last && last.dom.isConnected) {
+      if (last === this.view && tab.mode !== 'preview') return last;
+      if (last === this.blockView && tab.blockOpen) return last;
+    }
+    if (tab.mode !== 'preview') return this.view;
+    return tab.blockOpen ? this.blockView : null;
   }
 
   private docChanged(tab: Tab) {
@@ -175,8 +204,10 @@ class TabsStore {
     if (tab.id === this.viewTabId && this.view) {
       this.view.dispatch(spec);
     } else {
-      tab.cm = tab.cm.update(spec).state;
+      const tr = tab.cm.update(spec);
+      tab.cm = tr.state;
       this.docChanged(tab);
+      this.blockHooks?.change(tab, tr.changes);
     }
   }
 
@@ -321,6 +352,8 @@ class TabsStore {
     tab.eol = data.eol;
     tab.bom = data.bom;
     tab.mixedEol = data.mixedEol;
+    // il blocco aperto si chiude prima (un blocco vuoto toglie le sue righe), poi si confronta
+    if (tab.cm.doc.toString() !== data.content) this.blockHooks?.reload(tab);
     const old = tab.cm.doc.toString();
     if (old !== data.content) {
       this.applyChange(tab, {
@@ -357,6 +390,7 @@ class TabsStore {
   }
 
   async closeTab(tab: Tab) {
+    this.blockHooks?.close(tab);
     if (!(await this.prepareClose(tab))) return;
     await this.removeTab(tab);
   }
@@ -380,6 +414,7 @@ class TabsStore {
 
   /** Per la chiusura della finestra: salva quel che si può, poi chiede conferma per il resto. */
   async confirmQuit(): Promise<boolean> {
+    this.blockHooks?.close(null);
     await Promise.all(
       this.tabs
         .filter((x) => x.path && !x.conflict && x.dirty)

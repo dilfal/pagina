@@ -125,6 +125,18 @@ export function renderBlocks(source: string): RenderedBlock[] {
   return blocks;
 }
 
+/** Intervalli (righe 0-based, fine esclusa) dei blocchi di primo livello, gli stessi che portano `data-source-*`. */
+export function parseBlockRanges(source: string): { start: number; end: number }[] {
+  const tokens = getMd().parse(source, {});
+  const out: { start: number; end: number }[] = [];
+  for (const tok of tokens) {
+    if (tok.level === 0 && tok.map && tok.nesting >= 0 && !tok.type.startsWith('footnote')) {
+      out.push({ start: tok.map[0], end: tok.map[1] });
+    }
+  }
+  return out;
+}
+
 /** Sanifica l'HTML finale e risolve i percorsi relativi delle immagini. */
 export function sanitize(html: string, opts: RenderOptions = {}): string {
   const frag = DOMPurify.sanitize(html, {

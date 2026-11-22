@@ -182,3 +182,47 @@
 .markdown-body details > summary {
   cursor: pointer;
 }
+
+/* Modifica nell'anteprima: blocco aperto (piccolo CodeMirror) e cella di tabella */
+.markdown-body .block-editor {
+  margin: 0 0 1em;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--editor-bg);
+}
+.markdown-body .block-editor .cm-editor {
+  height: auto;
+  max-height: 70vh;
+}
+.markdown-body .block-editor .cm-content {
+  padding: 8px 0;
+}
+.markdown-body .table-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 4px;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.2;
+}
+.markdown-body .table-bar button {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--btn-bg);
+  cursor: pointer;
+}
+.markdown-body .table-bar button:hover {
+  background: var(--btn-hover);
+}
+.markdown-body table .cell-editing {
+  min-width: 4em;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--editor-bg);
+  font-family: var(--mono);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+}

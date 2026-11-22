@@ -186,6 +186,169 @@ pub fn write_file(
     Ok(())
 }
 
+/// Dimensione massima di un'immagine incollata o importata.
+pub const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
+const IMAGE_EXTS: [&str; 5] = ["png", "jpg", "jpeg", "gif", "webp"];
+/// Caratteri che rompono un riferimento Markdown o un nome di file.
+const UNSAFE_NAME_CHARS: &str = "#?%()[]<>:*\"|/\\";
+
+/// Estensione accettata (minuscola, senza punto), altrimenti errore.
+pub fn image_ext(ext: &str) -> Result<String, FileError> {
+    let e = ext.trim().trim_start_matches('.').to_lowercase();
+    if IMAGE_EXTS.contains(&e.as_str()) {
+        Ok(e)
+    } else {
+        Err(FileError::io(format!(
+            "Formato immagine non supportato: «{ext}» (ammessi png, jpg, jpeg, gif, webp)"
+        )))
+    }
+}
+
+/// Nome del documento ripulito dai caratteri che romperebbero un riferimento Markdown
+/// o un nome di file (gli spazi restano: li codifica il frontend).
+fn safe_stem(md_path: &Path) -> String {
+    let stem = md_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let cleaned: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_control() || UNSAFE_NAME_CHARS.contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim().to_string();
+    if cleaned.is_empty() {
+        "immagine".into()
+    } else {
+        cleaned
+    }
+}
+
+/// `<nome-del-md>-AAAAMMGG-HHMMSS[-N].<ext>`
+pub fn image_file_name(md_path: &Path, stamp: &str, ext: &str, n: u32) -> String {
+    let stem = safe_stem(md_path);
+    if n <= 1 {
+        format!("{stem}-{stamp}.{ext}")
+    } else {
+        format!("{stem}-{stamp}-{n}.{ext}")
+    }
+}
+
+/// La cartella `immagini` esistente deve essere proprio quella accanto al documento: né un
+/// collegamento simbolico né (per il confronto dei percorsi reali) una giunzione altrove.
+/// L'attributo «reparse point» da solo non basta (lo hanno anche le cartelle di OneDrive).
+fn images_dir_is_safe(dir: &Path, md_dir: &Path) -> bool {
+    let Ok(meta) = fs::symlink_metadata(dir) else {
+        return true; // non esiste ancora: la creiamo noi
+    };
+    if meta.file_type().is_symlink() {
+        return false;
+    }
+    match (fs::canonicalize(dir), fs::canonicalize(md_dir)) {
+        (Ok(real), Ok(base)) => {
+            norm_path(&real.to_string_lossy()) == norm_path(&base.join("immagini").to_string_lossy())
+        }
+        _ => false,
+    }
+}
+
+/// I primi byte corrispondono al formato dichiarato dall'estensione (jpg e jpeg sono lo stesso).
+pub fn image_matches(bytes: &[u8], ext: &str) -> bool {
+    match ext {
+        "png" => bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]),
+        "jpg" | "jpeg" => bytes.starts_with(&[0xFF, 0xD8, 0xFF]),
+        "gif" => bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a"),
+        "webp" => bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP",
+        _ => false,
+    }
+}
+
+/// Salva un'immagine in `<cartella del md>/immagini/`, senza mai sovrascrivere nulla:
+/// il nome si «prenota» con `create_new` (suffisso -2, -3… se esiste), poi il contenuto
+/// arriva con la scrittura atomica. Restituisce il nome relativo alla cartella del md
+/// (`immagini/<nome>`).
+pub fn save_image_at(
+    md_path: &Path,
+    bytes: &[u8],
+    ext: &str,
+    stamp: &str,
+) -> Result<String, FileError> {
+    let ext = image_ext(ext)?;
+    if bytes.is_empty() {
+        return Err(FileError::io("Immagine vuota"));
+    }
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return Err(FileError::io("Immagine troppo grande (massimo 20 MB)"));
+    }
+    if !image_matches(bytes, &ext) {
+        return Err(FileError::io(
+            "Il contenuto non corrisponde al formato dell'immagine (png, jpg, gif, webp)",
+        ));
+    }
+    if !md_path.is_absolute() {
+        return Err(FileError::io("Percorso del documento non valido"));
+    }
+    let dir = md_path
+        .parent()
+        .ok_or_else(|| FileError::io("Percorso del documento non valido"))?
+        .join("immagini");
+    if !images_dir_is_safe(&dir, md_path.parent().unwrap_or(Path::new("."))) {
+        return Err(FileError::io(
+            "La cartella «immagini» è un collegamento: non la uso",
+        ));
+    }
+    fs::create_dir_all(&dir).map_err(FileError::io)?;
+    for n in 1..10_000u32 {
+        let name = image_file_name(md_path, stamp, &ext, n);
+        let target = dir.join(&name);
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+        {
+            Ok(claim) => {
+                drop(claim);
+                if let Err(e) = atomic_write(&target, bytes) {
+                    let _ = fs::remove_file(&target);
+                    return Err(FileError::io(e));
+                }
+                return Ok(format!("immagini/{name}"));
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(FileError::io(e)),
+        }
+    }
+    Err(FileError::io("Troppe immagini con lo stesso nome"))
+}
+
+pub fn save_image(md_path: &Path, bytes: &[u8], ext: &str) -> Result<String, FileError> {
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    save_image_at(md_path, bytes, ext, &stamp)
+}
+
+/// Decodifica i `%XX` di un valore passato in un'intestazione.
+pub fn percent_decode(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = s.get(i + 1..i + 3)?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 /// Trasforma gli argomenti della riga di comando in percorsi assoluti di
 /// file esistenti (ignora le opzioni che iniziano con `-`).
 pub fn resolve_cli_paths(args: &[String], cwd: Option<&str>) -> Vec<String> {
@@ -317,6 +480,144 @@ mod tests {
         assert_eq!(fs::read(&real).unwrap(), b"nuovo");
         assert_eq!(fs::read(&link).unwrap(), b"nuovo");
         fs::remove_dir_all(&d).unwrap();
+    }
+
+    const PNG_HEAD: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+
+    fn png(tail: &[u8]) -> Vec<u8> {
+        let mut v = PNG_HEAD.to_vec();
+        v.extend_from_slice(tail);
+        v
+    }
+
+    #[test]
+    fn image_name_has_stamp_and_suffix_on_collision() {
+        let d = tmpdir("img");
+        let md = d.join("Il mio (file) #1.md");
+        let first = save_image_at(&md, &png(b"uno"), "PNG", "20260102-030405").unwrap();
+        assert_eq!(first, "immagini/Il mio _file_ _1-20260102-030405.png");
+        let second = save_image_at(&md, &png(b"due"), "png", "20260102-030405").unwrap();
+        assert_eq!(second, "immagini/Il mio _file_ _1-20260102-030405-2.png");
+        let third = save_image_at(&md, &png(b"tre"), "png", "20260102-030405").unwrap();
+        assert!(third.ends_with("-3.png"));
+        assert_eq!(fs::read(d.join(&first)).unwrap(), png(b"uno"));
+        assert_eq!(fs::read(d.join(&second)).unwrap(), png(b"due"));
+        let left: Vec<_> = fs::read_dir(d.join("immagini"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains("pagina-tmp"))
+            .collect();
+        assert!(left.is_empty());
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn image_never_overwrites_existing_file() {
+        let d = tmpdir("img-keep");
+        let md = d.join("doc.md");
+        fs::create_dir_all(d.join("immagini")).unwrap();
+        fs::write(d.join("immagini/doc-20260101-000000.png"), b"originale").unwrap();
+        let r = save_image_at(&md, &png(b"nuovo"), "png", "20260101-000000").unwrap();
+        assert_eq!(r, "immagini/doc-20260101-000000-2.png");
+        assert_eq!(
+            fs::read(d.join("immagini/doc-20260101-000000.png")).unwrap(),
+            b"originale"
+        );
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn image_rejects_bad_extension_empty_and_too_big() {
+        let d = tmpdir("img-bad");
+        let md = d.join("doc.md");
+        assert!(save_image_at(&md, b"x", "exe", "s").is_err());
+        assert!(save_image_at(&md, b"x", "svg", "s").is_err());
+        assert!(save_image_at(&md, b"", "png", "s").is_err());
+        let mut big = png(&[]);
+        big.resize(MAX_IMAGE_BYTES + 1, 0);
+        let err = save_image_at(&md, &big, "png", "s").unwrap_err();
+        assert!(err.message.contains("troppo grande"));
+        let mut ok = png(&[]);
+        ok.resize(MAX_IMAGE_BYTES, 0);
+        assert!(save_image_at(&md, &ok, "png", "s").is_ok());
+        assert!(!d.join("immagini/doc-s.exe").exists());
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn image_magic_bytes_must_match_extension() {
+        let jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0];
+        let mut webp = b"RIFF".to_vec();
+        webp.extend_from_slice(&[1, 2, 3, 4]);
+        webp.extend_from_slice(b"WEBP");
+        assert!(image_matches(&PNG_HEAD, "png"));
+        assert!(image_matches(&jpeg, "jpg"));
+        assert!(image_matches(&jpeg, "jpeg"));
+        assert!(image_matches(b"GIF87a..", "gif"));
+        assert!(image_matches(b"GIF89a..", "gif"));
+        assert!(image_matches(&webp, "webp"));
+        assert!(!image_matches(&jpeg, "png"));
+        assert!(!image_matches(&PNG_HEAD, "jpg"));
+        assert!(!image_matches(b"RIFF....WAVE", "webp"));
+        assert!(!image_matches(b"MZ", "png"));
+
+        let d = tmpdir("img-magic");
+        let md = d.join("doc.md");
+        // un eseguibile travestito da png viene rifiutato e non lascia nulla
+        let err = save_image_at(&md, b"MZ programma", "png", "s").unwrap_err();
+        assert!(err.message.contains("non corrisponde"));
+        assert!(!d.join("immagini").exists());
+        // jpg dichiarato ma contenuto png
+        assert!(save_image_at(&md, &png(b"x"), "jpg", "s").is_err());
+        assert!(save_image_at(&md, &jpeg, "jpeg", "s").is_ok());
+        assert!(save_image_at(&md, &webp, "webp", "s").is_ok());
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn image_folder_that_is_a_link_is_refused() {
+        let d = tmpdir("img-link");
+        let md = d.join("doc.md");
+        let target = d.join("altrove");
+        fs::create_dir_all(&target).unwrap();
+        let link = d.join("immagini");
+        #[cfg(windows)]
+        let made = std::os::windows::fs::symlink_dir(&target, &link).or_else(|_| {
+            // senza privilegi per i collegamenti simbolici si prova una giunzione
+            std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(&link)
+                .arg(&target)
+                .output()
+                .and_then(|o| {
+                    if o.status.success() {
+                        Ok(())
+                    } else {
+                        Err(std::io::Error::other("mklink non riuscito"))
+                    }
+                })
+        });
+        #[cfg(unix)]
+        let made = std::os::unix::fs::symlink(&target, &link);
+        if made.is_err() {
+            eprintln!("collegamento non creabile, test saltato");
+            fs::remove_dir_all(&d).unwrap();
+            return;
+        }
+        let err = save_image_at(&md, &png(b"x"), "png", "s").unwrap_err();
+        assert!(err.message.contains("collegamento"));
+        assert_eq!(fs::read_dir(&target).unwrap().count(), 0);
+        fs::remove_dir(&link).unwrap();
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn percent_decode_roundtrip() {
+        assert_eq!(
+            percent_decode("C%3A%5CDoc%20x%C3%A8.md").as_deref(),
+            Some("C:\\Doc xè.md")
+        );
+        assert_eq!(percent_decode("%zz"), None);
     }
 
     #[test]
